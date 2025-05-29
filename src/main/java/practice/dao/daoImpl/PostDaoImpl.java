@@ -79,23 +79,84 @@ public class PostDaoImpl implements PostDao {
     @Override
     public List<Post> getAllPosts() {
         List<Post> posts = new ArrayList<>();
-        String sql =
-
+        String sql = """
+                SELECT *
+                FROM posts
+                """;
+        try(Statement statement = connection.createStatement()){
+            ResultSet resultSet = statement.executeQuery(sql);
+            while (resultSet.next()){
+                Post post = new Post();
+                post.setId(resultSet.getLong("id"));
+                post.setImage(resultSet.getString("image"));
+                post.setDescription(resultSet.getString("description"));
+                post.setCreatedDate(resultSet.getDate("date").toLocalDate());
+                post.setUserId(resultSet.getLong("user_id"));
+                posts.add(post);
+            }
+            return posts;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
         return List.of();
     }
 
     @Override
     public String updatePost(Long id, Post post) {
-        return "";
+        String sql = "UPDATE posts SET image = ?, description = ?, date = ?, user_id = ? WHERE id = ?";
+
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, post.getImage());
+            statement.setString(2, post.getDescription());
+            statement.setDate(3, Date.valueOf(post.getCreatedDate()));
+            statement.setLong(4, post.getUserId());
+            statement.setLong(5, id);
+
+            int rowsUpdated = statement.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                return "Post updated successfully.";
+            } else {
+                return "Post not found.";
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return "Error updating post: " + e.getMessage();
+        }
     }
+
 
     @Override
     public String deletePost(Long id) {
-        return "";
+        String sql = "DELETE FROM posts WHERE id = ?";
+        try(PreparedStatement preparedStatement = connection.prepareStatement(sql)){
+            preparedStatement.setLong(1, id);
+            preparedStatement.executeUpdate();
+            return "post deleted";
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return "error";
     }
 
     @Override
     public int countPostsByUserId(Long id) {
-        return 0;
+        int postsCount =0;
+        String sql = """
+                SELECT COUNT(p.id) AS posts_count
+                FROM posts p
+                JOIN users u ON p.user_id = u.id
+                WHERE u.id = ?
+                """;
+        try(PreparedStatement preparedStatement = connection.prepareStatement(sql)){
+            preparedStatement.setLong(1, id);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                postsCount = resultSet.getInt("posts_count");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return postsCount;
     }
 }
